@@ -866,6 +866,16 @@ export function USDTTransfer({
         )}
       </div>
 
+      {/* 交易进度条 */}
+      {isVisible && (
+        <TransactionProgress
+          steps={steps}
+          onClose={hideProgress}
+          provider={provider}
+          onComplete={handleComplete}
+        />
+      )}
+
       {/* 记录查询区域 */}
       <div className="records-section">
         <h2>代币交易记录</h2>
@@ -1028,16 +1038,6 @@ export function USDTTransfer({
           )}
         </div>
       </div>
-
-      {/* 交易进度条 */}
-      {isVisible && (
-        <TransactionProgress
-          steps={steps}
-          onClose={hideProgress}
-          provider={provider}
-          onComplete={handleComplete}
-        />
-      )}
     </div>
   );
 }

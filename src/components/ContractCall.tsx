@@ -369,6 +369,16 @@ export function ContractCall({
           </button>
         </div>
       </div>
+
+      {/* 交易进度条 */}
+      {isVisible && (
+        <TransactionProgress
+          steps={steps}
+          onClose={hideProgress}
+          provider={provider}
+          onComplete={handleComplete}
+        />
+      )}
       
       {/* 记录查询区域 */}
       <div className="records-section">
@@ -567,16 +577,6 @@ export function ContractCall({
           )}
         </div>
       </div>
-
-      {/* 交易进度条 */}
-      {isVisible && (
-        <TransactionProgress
-          steps={steps}
-          onClose={hideProgress}
-          provider={provider}
-          onComplete={handleComplete}
-        />
-      )}
     </div>
   );
 }

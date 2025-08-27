@@ -227,37 +227,59 @@ export function NativeTransfer({
       }
 
       const updatedTransactions = [initialTransaction, ...transactions]
+      
+      // 立即更新状态和本地存储
       onTransactionUpdate(updatedTransactions)
       localStorage.setItem('datachain_transactions', JSON.stringify(updatedTransactions))
       
-      setToAddress('')
-      setAmount('')
-      setMessage('')
+      // 强制触发重新渲染 - 添加调试日志
+      console.log('交易记录已添加，当前记录数量:', updatedTransactions.length)
+      console.log('新增交易记录:', initialTransaction)
+      
+      // 稍后清空表单，确保状态更新完成
+      setTimeout(() => {
+        setToAddress('')
+        setAmount('')
+        setMessage('')
+      }, 100)
       
       onBalanceUpdate()
       
-      showSuccess('交易已提交，哈希: ' + tx.hash)
+      showSuccess('交易已提交，哈希: ' + tx.hash + '\n记录已添加到交易列表')
       
       console.log('等待交易确认...')
-      try {
-        // 等待交易确认 - 进度条组件会自动处理waitForTransaction
-        await tx.wait()
-        
-        // 确认成功
-        updateStep('confirm', { status: 'success' })
-        
-        const blockchainTx = await getTransactionDetails(tx.hash)
-        if (blockchainTx) {
-          const finalTransactions = transactions.filter(t => t.hash !== tx.hash)
-          const newTransactions = [blockchainTx, ...finalTransactions]
-          onTransactionUpdate(newTransactions)
-          localStorage.setItem('datachain_transactions', JSON.stringify(newTransactions))
-          console.log('交易详情已从区块链更新')
+      
+      // 异步等待确认，不阻塞UI，确保本地记录已经显示
+      setTimeout(async () => {
+        try {
+          // 等待交易确认
+          await tx.wait()
+          
+          // 确认成功
+          updateStep('confirm', { status: 'success' })
+          console.log('交易确认成功，开始获取区块链详情')
+          
+          // 尝试从区块链获取详细信息并更新记录
+          const blockchainTx = await getTransactionDetails(tx.hash)
+          if (blockchainTx) {
+            // 重新获取最新的交易列表，确保不会覆盖其他可能的更新
+            const currentStoredTransactions = localStorage.getItem('datachain_transactions')
+            const currentTransactions = currentStoredTransactions ? JSON.parse(currentStoredTransactions) : []
+            const finalTransactions = currentTransactions.filter((t: Transaction) => t.hash !== tx.hash)
+            const newTransactions = [blockchainTx, ...finalTransactions]
+            
+            console.log('区块链交易详情获取成功，更新记录:', blockchainTx)
+            onTransactionUpdate(newTransactions)
+            localStorage.setItem('datachain_transactions', JSON.stringify(newTransactions))
+          } else {
+            console.log('无法从区块链获取交易详情，保持本地记录')
+          }
+        } catch (confirmError) {
+          console.error('获取确认后的交易详情失败:', confirmError)
+          updateStep('confirm', { status: 'error', error: '获取交易确认失败' })
+          console.log('确认失败但保持本地交易记录显示')
         }
-      } catch (confirmError) {
-        console.log('获取确认后的交易详情失败:', confirmError)
-        updateStep('confirm', { status: 'error', error: '获取交易确认失败' })
-      }
+      }, 500) // 减少等待时间到500ms
       
     } catch (error) {
       console.error('交易失败详情:', error)
@@ -304,7 +326,7 @@ export function NativeTransfer({
       // 检查是否已存在该交易记录
       const existingTx = transactions.find(tx => tx.hash.toLowerCase() === txHash.toLowerCase())
       if (existingTx) {
-        showWarning('该交易记录已存在')
+        // 直接设置搜索词高亮显示已存在的交易，不显示警告
         setSearchTerm(txHash)
         setSearchInput(txHash)
         setIsSearching(false)
@@ -358,13 +380,21 @@ export function NativeTransfer({
     return str.toString().toLowerCase().includes(searchTerm.toLowerCase())
   }
   
-  // 过滤交易记录
-  const filteredTransactions = transactions.filter(tx => 
-    safeIncludes(tx.hash, searchTerm) ||
-    safeIncludes(tx.from, searchTerm) ||
-    safeIncludes(tx.to, searchTerm) ||
-    safeIncludes(tx.data, searchTerm)
-  )
+  // 过滤交易记录 - 如果没有搜索词则显示所有记录
+  const filteredTransactions = searchTerm 
+    ? transactions.filter(tx => 
+        safeIncludes(tx.hash, searchTerm) ||
+        safeIncludes(tx.from, searchTerm) ||
+        safeIncludes(tx.to, searchTerm) ||
+        safeIncludes(tx.data, searchTerm)
+      )
+    : transactions  // 没有搜索词时显示全部记录
+
+  // 添加调试日志
+  console.log('NativeTransfer组件渲染 - 总交易记录数:', transactions.length)
+  console.log('NativeTransfer组件渲染 - 过滤后记录数:', filteredTransactions.length)
+  console.log('NativeTransfer组件渲染 - 搜索词:', searchTerm)
+  console.log('NativeTransfer组件渲染 - 原始交易记录:', transactions)
 
   return (
     <div className="unified-layout">
@@ -423,6 +453,16 @@ export function NativeTransfer({
           {isLoading ? '提交中...' : '提交交易'}
         </button>
       </div>
+
+      {/* 交易进度条 */}
+      {isVisible && (
+        <TransactionProgress
+          steps={steps}
+          onClose={hideProgress}
+          provider={provider}
+          onComplete={handleComplete}
+        />
+      )}
       
       {/* 记录查询区域 */}
       <div className="records-section">
@@ -460,14 +500,14 @@ export function NativeTransfer({
           </div>
           
           {isSearching && (
-            <div style={{ padding: '10px', background: 'rgba(255, 152, 0, 0.1)', borderRadius: '8px', marginBottom: '10px' }}>
+            <div style={{ padding: '10px', background: 'rgba(255, 152, 0, 0.1)', borderRadius: '8px', marginBottom: '10px', wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
               🔄 正在查询交易详情，请稍候...
             </div>
           )}
           
           {searchTerm && !isSearching && (
-            <div style={{ padding: '10px', background: 'rgba(72, 187, 120, 0.1)', borderRadius: '8px', marginBottom: '10px' }}>
-              正在搜索: <strong>{searchTerm}</strong> - 找到 {filteredTransactions.length} 条交易记录
+            <div style={{ padding: '10px', background: 'rgba(72, 187, 120, 0.1)', borderRadius: '8px', marginBottom: '10px', wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+              正在搜索:<br /> <strong style={{ wordBreak: 'break-all' }}>{searchTerm}</strong> <br /> 找到 {filteredTransactions.length} 条交易记录
             </div>
           )}
         </div>
@@ -511,16 +551,6 @@ export function NativeTransfer({
           )}
         </div>
       </div>
-
-      {/* 交易进度条 */}
-      {isVisible && (
-        <TransactionProgress
-          steps={steps}
-          onClose={hideProgress}
-          provider={provider}
-          onComplete={handleComplete}
-        />
-      )}
     </div>
   )
 }
