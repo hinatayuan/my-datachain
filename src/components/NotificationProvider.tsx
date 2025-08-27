@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react'
+import React, { useState } from 'react'
 import type { ReactNode } from 'react'
 import { 
   Snackbar, 
@@ -6,16 +6,7 @@ import {
   Slide
 } from '@mui/material'
 import type { AlertColor, SlideProps } from '@mui/material'
-
-interface NotificationContextType {
-  showNotification: (message: string, severity?: AlertColor) => void
-  showSuccess: (message: string) => void
-  showError: (message: string) => void
-  showWarning: (message: string) => void
-  showInfo: (message: string) => void
-}
-
-const NotificationContext = createContext<NotificationContextType | null>(null)
+import { NotificationContext } from '../contexts/NotificationContext'
 
 function SlideTransition(props: SlideProps) {
   return <Slide {...props} direction="up" />
@@ -61,7 +52,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         open={open}
         autoHideDuration={6000}
         onClose={handleClose}
-        TransitionComponent={SlideTransition}
+        slots={{ transition: SlideTransition }}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Alert 
@@ -77,10 +68,3 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   )
 }
 
-export function useNotification() {
-  const context = useContext(NotificationContext)
-  if (!context) {
-    throw new Error('useNotification must be used within a NotificationProvider')
-  }
-  return context
-}

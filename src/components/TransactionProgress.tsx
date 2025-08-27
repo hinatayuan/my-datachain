@@ -1,13 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ethers } from 'ethers'
+import type { TransactionStep } from '../hooks/useTransactionProgress'
 
-export interface TransactionStep {
-  id: string
-  label: string
-  status: 'pending' | 'loading' | 'success' | 'error'
-  txHash?: string
-  error?: string
-}
+export type { TransactionStep }
 
 interface TransactionProgressProps {
   steps: TransactionStep[]
@@ -68,7 +63,7 @@ export function TransactionProgress({ steps, onClose, provider, onComplete }: Tr
           : step
       ))
     }
-  }, [provider])
+  }, [provider, onComplete])
 
   // 当步骤更新时，自动监听新的交易哈希
   useEffect(() => {
@@ -130,6 +125,13 @@ export function TransactionProgress({ steps, onClose, provider, onComplete }: Tr
       <div className="progress-info">
         <span className="progress-text">📋 交易进度</span>
         <span className="progress-percentage">{Math.round(progressPercentage)}%</span>
+        <button 
+          className="progress-close-btn"
+          onClick={onClose}
+          title="关闭进度条"
+        >
+          ✕
+        </button>
       </div>
       
       <div className="progress-track">
@@ -188,44 +190,3 @@ export function TransactionProgress({ steps, onClose, provider, onComplete }: Tr
   )
 }
 
-// Hook for managing transaction progress
-export function useTransactionProgress(onComplete?: () => void) {
-  const [isVisible, setIsVisible] = useState(false)
-  const [steps, setSteps] = useState<TransactionStep[]>([])
-
-  const showProgress = (initialSteps: TransactionStep[]) => {
-    setSteps(initialSteps)
-    setIsVisible(true)
-  }
-
-  const hideProgress = () => {
-    setIsVisible(false)
-    setSteps([])
-  }
-
-  const updateStep = (stepId: string, updates: Partial<TransactionStep>) => {
-    setSteps(prev => prev.map(step => 
-      step.id === stepId 
-        ? { ...step, ...updates }
-        : step
-    ))
-  }
-
-  const handleComplete = () => {
-    if (onComplete) {
-      onComplete()
-    }
-    setTimeout(() => {
-      hideProgress()
-    }, 3000) // 3秒后自动隐藏进度条
-  }
-
-  return {
-    isVisible,
-    steps,
-    showProgress,
-    hideProgress,
-    updateStep,
-    handleComplete
-  }
-}

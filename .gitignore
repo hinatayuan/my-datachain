@@ -34,3 +34,4 @@ yarn-error.log*
 ehthumbs.db
 Thumbs.db
 .vite
+.claude/settings.local.json

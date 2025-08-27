@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { ethers } from "ethers";
 import {
   TransactionProgress,
-  useTransactionProgress,
   type TransactionStep,
 } from "./TransactionProgress";
-import { useNotification } from "./NotificationProvider";
+import { useTransactionProgress } from '../hooks/useTransactionProgress';
+import { useNotification } from '../hooks/useNotification';
 
 interface Network {
   name: string;
@@ -72,7 +72,7 @@ export function USDTTransfer({
     });
 
   // 代币信息配置
-  const TOKEN_INFO: { [chainId: string]: { [symbol: string]: TokenInfo } } = {
+  const TOKEN_INFO = useMemo((): { [chainId: string]: { [symbol: string]: TokenInfo } } => ({
     "0xaa36a7": {
       // Sepolia
       USDT: {
@@ -103,10 +103,10 @@ export function USDTTransfer({
         decimals: 6,
       },
     },
-  };
+  }), []);
 
   // ERC20 ABI (包含approve功能和Transfer事件)
-  const ERC20_ABI = [
+  const ERC20_ABI = useMemo(() => [
     "function transfer(address to, uint256 amount) returns (bool)",
     "function balanceOf(address account) view returns (uint256)",
     "function decimals() view returns (uint8)",
@@ -114,10 +114,10 @@ export function USDTTransfer({
     "function approve(address spender, uint256 amount) returns (bool)",
     "function allowance(address owner, address spender) view returns (uint256)",
     "event Transfer(address indexed from, address indexed to, uint256 value)",
-  ];
+  ], []);
 
   // 备用：从本地存储加载记录
-  const loadUSDTRecordsFromLocal = () => {
+  const loadUSDTRecordsFromLocal = useCallback(() => {
     const saved = localStorage.getItem("datachain_usdt_records");
     if (saved) {
       const localRecords = JSON.parse(saved) as USDTRecord[];
@@ -129,7 +129,7 @@ export function USDTTransfer({
       );
       setUsdtRecords(userRecords);
     }
-  };
+  }, [account]);
 
   // 从链上查询代币转账记录
   const loadTokenRecordsFromChain = useCallback(async () => {
@@ -248,15 +248,15 @@ export function USDTTransfer({
     localStorage.setItem("datachain_usdt_records", JSON.stringify(allRecords));
   };
 
-  const getTokenContract = (tokenSymbol: string = selectedToken) => {
+  const getTokenContract = useCallback((tokenSymbol: string = selectedToken) => {
     const tokenInfo = TOKEN_INFO[network.chainId]?.[tokenSymbol];
     if (!tokenInfo || !signer) return null;
     return new ethers.Contract(tokenInfo.address, ERC20_ABI, signer);
-  };
+  }, [selectedToken, network.chainId, TOKEN_INFO, ERC20_ABI, signer]);
 
-  const getCurrentTokenInfo = () => {
+  const getCurrentTokenInfo = useCallback(() => {
     return TOKEN_INFO[network.chainId]?.[selectedToken];
-  };
+  }, [network.chainId, selectedToken, TOKEN_INFO]);
 
   // 检查代币余额
   const checkTokenBalance = useCallback(async () => {
@@ -280,14 +280,7 @@ export function USDTTransfer({
       setTokenBalance("0");
       return "0";
     }
-  }, [
-    account,
-    selectedToken,
-    provider,
-    network.chainId,
-    getCurrentTokenInfo,
-    getTokenContract,
-  ]);
+  }, [account, getTokenContract, getCurrentTokenInfo]);
 
   // 模拟ETH兑换功能
   // ETH兑换功能（暂不实现）
@@ -474,8 +467,8 @@ export function USDTTransfer({
       setTokenAmount("");
       setMessage("");
 
-      await onBalanceUpdate();
-      await checkTokenBalance();
+      onBalanceUpdate();
+      checkTokenBalance();
     } catch (error) {
       console.error(`${selectedToken}转账失败:`, error);
 

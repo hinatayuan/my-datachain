@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { request, gql } from "graphql-request";
-import { TransactionProgress, useTransactionProgress, type TransactionStep } from './TransactionProgress';
-import { useNotification } from './NotificationProvider';
+import { TransactionProgress, type TransactionStep } from './TransactionProgress';
+import { useTransactionProgress } from '../hooks/useTransactionProgress';
+import { useNotification } from '../hooks/useNotification';
 
 interface ContractInfo {
   name: string;
@@ -55,7 +56,7 @@ export function ContractCall({
   }, []); // 空依赖数组，只在组件挂载时执行一次
 
   const queryContractLogs = async (limit: number = 10) => {
-    const GRAPH_URL =
+    const GRAPH_URL = import.meta.env.VITE_GRAPH_API_URL || 
       "https://api.studio.thegraph.com/query/119001/yd-graph-2/v0.0.1";
 
     const possibleFieldNames = [
@@ -125,7 +126,7 @@ export function ContractCall({
   };
 
   const queryTransactionByHash = async (txHash: string) => {
-    const GRAPH_URL =
+    const GRAPH_URL = import.meta.env.VITE_GRAPH_API_URL || 
       "https://api.studio.thegraph.com/query/119001/yd-graph-2/v0.0.1";
 
     if (!txHash || txHash.length !== 66) {

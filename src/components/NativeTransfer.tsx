@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { ethers } from 'ethers'
-import { TransactionProgress, useTransactionProgress, type TransactionStep } from './TransactionProgress'
-import { useNotification } from './NotificationProvider'
+import { TransactionProgress, type TransactionStep } from './TransactionProgress'
+import { useTransactionProgress } from '../hooks/useTransactionProgress'
+import { useNotification } from '../hooks/useNotification'
 
 interface Network {
   name: string
@@ -63,13 +64,13 @@ export function NativeTransfer({
       let infuraUrl = ''
       switch (network.chainId) {
         case '0x1':
-          infuraUrl = 'https://mainnet.infura.io/v3/d6150d4bab92441bb828dd5674ec7766'
+          infuraUrl = import.meta.env.VITE_ETHEREUM_RPC || ''
           break
         case '0xaa36a7':
-          infuraUrl = 'https://sepolia.infura.io/v3/d6150d4bab92441bb828dd5674ec7766'
+          infuraUrl = import.meta.env.VITE_SEPOLIA_RPC || ''
           break
         case '0x5':
-          infuraUrl = 'https://goerli.infura.io/v3/d6150d4bab92441bb828dd5674ec7766'
+          infuraUrl = import.meta.env.VITE_GOERLI_RPC || ''
           break
         default:
           infuraUrl = ''
@@ -233,7 +234,7 @@ export function NativeTransfer({
       setAmount('')
       setMessage('')
       
-      await onBalanceUpdate()
+      onBalanceUpdate()
       
       showSuccess('交易已提交，哈希: ' + tx.hash)
       

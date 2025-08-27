@@ -5,7 +5,7 @@ import InfoContractABI from "../InfoContract.json";
 import { NativeTransfer } from "./components/NativeTransfer";
 import { ContractCall } from "./components/ContractCall";
 import { USDTTransfer } from "./components/USDTTransfer";
-import { useNotification } from "./components/NotificationProvider";
+import { useNotification } from "./hooks/useNotification";
 
 interface Transaction {
   hash: string;
