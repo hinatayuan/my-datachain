@@ -13,9 +13,10 @@ interface TransactionProgressProps {
   steps: TransactionStep[]
   onClose: () => void
   provider?: ethers.BrowserProvider | null
+  onComplete?: () => void
 }
 
-export function TransactionProgress({ steps, onClose, provider }: TransactionProgressProps) {
+export function TransactionProgress({ steps, onClose, provider, onComplete }: TransactionProgressProps) {
   const [currentSteps, setCurrentSteps] = useState<TransactionStep[]>(steps)
 
   // 监听交易哈希并等待确认
@@ -33,11 +34,21 @@ export function TransactionProgress({ steps, onClose, provider }: TransactionPro
       const receipt = await provider.waitForTransaction(txHash, 2) // 等待2个确认
       
       if (receipt && receipt.status === 1) {
-        setCurrentSteps(prev => prev.map(step => 
-          step.id === stepId 
-            ? { ...step, status: 'success' }
-            : step
-        ))
+        setCurrentSteps(prev => {
+          const newSteps = prev.map(step => 
+            step.id === stepId 
+              ? { ...step, status: 'success' as const }
+              : step
+          )
+          
+          // 检查是否所有步骤都完成了
+          const allCompleted = newSteps.every(s => s.status === 'success' || s.status === 'error')
+          if (allCompleted && onComplete) {
+            setTimeout(() => onComplete(), 1000) // 1秒后触发完成回调
+          }
+          
+          return newSteps
+        })
       } else {
         setCurrentSteps(prev => prev.map(step => 
           step.id === stepId 
@@ -109,83 +120,76 @@ export function TransactionProgress({ steps, onClose, provider }: TransactionPro
 
   const hasError = currentSteps.some(step => step.status === 'error')
 
+  const currentStepIndex = currentSteps.findIndex(step => step.status === 'loading')
+  const completedSteps = currentSteps.filter(step => step.status === 'success').length
+  const totalSteps = currentSteps.length
+  const progressPercentage = (completedSteps / totalSteps) * 100
+
   return (
-    <div className="transaction-progress-overlay">
-      <div className="transaction-progress-modal">
-        <div className="progress-header">
-          <h3>📋 交易进度</h3>
-          {isAllCompleted && (
-            <button 
-              className="close-progress"
-              onClick={onClose}
-              title="关闭"
+    <div className="transaction-progress-bar">
+      <div className="progress-info">
+        <span className="progress-text">📋 交易进度</span>
+        <span className="progress-percentage">{Math.round(progressPercentage)}%</span>
+      </div>
+      
+      <div className="progress-track">
+        <div 
+          className="progress-fill"
+          style={{ width: `${progressPercentage}%` }}
+        />
+        {currentSteps.map((step, index) => {
+          const stepProgress = (index / (totalSteps - 1)) * 100
+          return (
+            <div
+              key={step.id}
+              className={`progress-step-marker ${step.status}`}
+              style={{ left: `${stepProgress}%` }}
+              title={`${step.label}: ${getStatusText(step)}`}
             >
-              ✕
-            </button>
+              {step.status === 'loading' ? (
+                <div className="loading-spinner">{getStepIcon(step.status)}</div>
+              ) : (
+                getStepIcon(step.status)
+              )}
+            </div>
+          )
+        })}
+      </div>
+      
+      <div className="progress-details">
+        <div className="current-step">
+          {currentStepIndex >= 0 ? (
+            <>正在执行: {currentSteps[currentStepIndex]?.label}</>
+          ) : isAllCompleted && !hasError ? (
+            <span className="success-text">🎉 所有交易已成功完成！</span>
+          ) : hasError ? (
+            <span className="error-text">⚠️ 部分交易执行失败</span>
+          ) : (
+            '准备中...'
           )}
         </div>
-
-        <div className="progress-content">
-          {currentSteps.map((step, index) => (
-            <div key={step.id} className={`progress-step ${step.status}`}>
-              <div className="step-indicator">
-                <div className="step-number">
-                  {step.status === 'loading' ? (
-                    <div className="loading-spinner">{getStepIcon(step.status)}</div>
-                  ) : (
-                    getStepIcon(step.status)
-                  )}
-                </div>
-                {index < currentSteps.length - 1 && (
-                  <div className={`step-line ${
-                    step.status === 'success' ? 'completed' : 
-                    step.status === 'loading' ? 'active' : ''
-                  }`} />
-                )}
-              </div>
-
-              <div className="step-content">
-                <div className="step-label">{step.label}</div>
-                <div className={`step-status ${step.status}`}>
-                  {getStatusText(step)}
-                </div>
-                {step.txHash && (
-                  <div className="step-hash">
-                    <span>交易哈希: </span>
-                    <code className="hash-code">
-                      {step.txHash.slice(0, 10)}...{step.txHash.slice(-8)}
-                    </code>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="progress-footer">
-          {isAllCompleted && !hasError && (
-            <div className="success-message">
-              🎉 所有交易已成功完成！
-            </div>
-          )}
-          {hasError && (
-            <div className="error-message">
-              ⚠️ 部分交易执行失败，请检查详情
-            </div>
-          )}
-          {!isAllCompleted && (
-            <div className="loading-message">
-              ⏳ 正在处理交易，请勿关闭页面...
-            </div>
-          )}
-        </div>
+        
+        {currentSteps.some(step => step.txHash && step.status === 'loading') && (
+          <div className="current-hash">
+            {(() => {
+              const loadingStep = currentSteps.find(step => step.txHash && step.status === 'loading')
+              return loadingStep?.txHash ? (
+                <>
+                  交易哈希: <code className="hash-code">
+                    {loadingStep.txHash.slice(0, 10)}...{loadingStep.txHash.slice(-8)}
+                  </code>
+                </>
+              ) : null
+            })()}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 // Hook for managing transaction progress
-export function useTransactionProgress() {
+export function useTransactionProgress(onComplete?: () => void) {
   const [isVisible, setIsVisible] = useState(false)
   const [steps, setSteps] = useState<TransactionStep[]>([])
 
@@ -207,11 +211,21 @@ export function useTransactionProgress() {
     ))
   }
 
+  const handleComplete = () => {
+    if (onComplete) {
+      onComplete()
+    }
+    setTimeout(() => {
+      hideProgress()
+    }, 3000) // 3秒后自动隐藏进度条
+  }
+
   return {
     isVisible,
     steps,
     showProgress,
     hideProgress,
-    updateStep
+    updateStep,
+    handleComplete
   }
 }

@@ -65,8 +65,11 @@ export function USDTTransfer({
   const [isSearchingTxHash, setIsSearchingTxHash] = useState<boolean>(false);
 
   // 交易进度条状态
-  const { isVisible, steps, showProgress, hideProgress, updateStep } =
-    useTransactionProgress();
+  const { isVisible, steps, showProgress, hideProgress, updateStep, handleComplete } =
+    useTransactionProgress(() => {
+      // 完成后自动刷新链上记录
+      loadTokenRecordsFromChain();
+    });
 
   // 代币信息配置
   const TOKEN_INFO: { [chainId: string]: { [symbol: string]: TokenInfo } } = {
@@ -1039,6 +1042,7 @@ export function USDTTransfer({
           steps={steps}
           onClose={hideProgress}
           provider={provider}
+          onComplete={handleComplete}
         />
       )}
     </div>

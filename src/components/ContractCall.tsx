@@ -44,7 +44,10 @@ export function ContractCall({
   const [searchInput, setSearchInput] = useState<string>("");
   
   // 交易进度条状态
-  const { isVisible, steps, showProgress, hideProgress, updateStep } = useTransactionProgress();
+  const { isVisible, steps, showProgress, hideProgress, updateStep, handleComplete } = useTransactionProgress(() => {
+    // 完成后自动查询合约日志
+    queryContractLogs(10);
+  });
 
   // 组件初始化时查询一次
   useEffect(() => {
@@ -570,6 +573,7 @@ export function ContractCall({
           steps={steps}
           onClose={hideProgress}
           provider={provider}
+          onComplete={handleComplete}
         />
       )}
     </div>

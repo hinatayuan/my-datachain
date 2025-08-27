@@ -51,7 +51,10 @@ export function NativeTransfer({
   const [isSearching, setIsSearching] = useState<boolean>(false)
   
   // 交易进度条状态
-  const { isVisible, steps, showProgress, hideProgress, updateStep } = useTransactionProgress()
+  const { isVisible, steps, showProgress, hideProgress, updateStep, handleComplete } = useTransactionProgress(() => {
+    // 完成后自动刷新余额和交易记录
+    onBalanceUpdate();
+  })
 
   const getTransactionDetails = async (txHash: string): Promise<Transaction | null> => {
     try {
@@ -514,6 +517,7 @@ export function NativeTransfer({
           steps={steps}
           onClose={hideProgress}
           provider={provider}
+          onComplete={handleComplete}
         />
       )}
     </div>
